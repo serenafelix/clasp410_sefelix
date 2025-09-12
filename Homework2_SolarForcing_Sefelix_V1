@@ -5,13 +5,13 @@ import numpy as np
 
 #Values we know
 albedo = 0.33
-stefan_boltzman_constant = 0.0000000567
+solar = 1350
 year = np.array([1900, 1950, 2000])
-s0 = np.array([1365, 1366.5, 1368])
+solar_irradiance = np.array([1365, 1366.5, 1368])
 t_anom = np.array([-0.4, 0, 0.4])
 
 #Equation we are trying to solve:
-def Atmosphere(s0, albedo):
-    Surface_temp = (((1-albedo) * s0) / (2*stefan_boltzman_constant))**0.25 
+def Atmosphere(solar=1365, albedo=0.33):
+    Surface_temp = (((1-albedo) * solar) / (2*0.0000000567))**(0.25)
 #This function returns the surface temperature of the Earth as a function of albedo 
 #and solar irridance based on the derivation completed in lecture 2.

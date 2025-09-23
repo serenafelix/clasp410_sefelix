@@ -129,8 +129,8 @@ def energy_balance_model_nuclear(N=5, emis=1.0, a=0.33, solar=1350):
     """
 #Add in the dimensions of the matrix(N+1 x N+1):
     A = np.zeros([N+1, N+1]) #matrix of coefficients
-    b = np.zeros(N+1) #vector of constants
-    b[0] = -solar/4 * (1-a)
+    b = np.zeros(N+1, dtype=float) #vector of constants
+    b[N] = -solar/4 * (1-a) #make it so all solar radiation is absorbed by the top layer
     
     # Populate A using our rules
     for i in range(N+1):
@@ -151,19 +151,29 @@ def energy_balance_model_nuclear(N=5, emis=1.0, a=0.33, solar=1350):
     AtmosFlux = np.matmul(InverseA, b) #matrix multiplication to get fluxes
 
     # convert flux (W/m^2) to temperature using Stefan-Boltzmann law
-    # Initialize the output array first
-    nuclear_temp = np.zeros(N+1)
-    with np.errstate(invalid='ignore', divide='ignore'):
-        # compute baseline temperatures using the provided emissivity for atmosphere/surface
+    nuclear_temp = np.zeros(N+1) #create the output array that will let us use [N] effectively
+    with np.errstate(invalid='ignore', divide='ignore'): #needed to add this line to avoid warnings and NaNs
         if emis != 0:
-            nuclear_temp = (AtmosFlux / sbc / emis) ** 0.25
+            nuclear_temp = (AtmosFlux / sbc / emis) ** 0.25 #baseline temperatures
         else:
             # avoid division by zero if emis == 0
             nuclear_temp = (AtmosFlux / sbc) ** 0.25
 
-        # top layer (index N) is assumed to have emissivity = 1 (absorbs all incoming)
-        # use emissivity=1 for that layer when converting flux to temperature
+        #assign emissivity of one to top layer
         nuclear_temp[N] = (AtmosFlux[N] / sbc) ** 0.25
 
     return nuclear_temp
-print(energy_balance_model_nuclear(5, 1.0, albedo, 1350))
+print(energy_balance_model_nuclear(5, 0.5, 0.33, 1350)) #make sure the model works
+
+temps = energy_balance_model_nuclear(5, emis=0.5, a=0.33, solar=1350) #assign a name to the output of the function
+
+#make the plot
+layers = np.arange(len(temps)) #make an array based on the number of layers
+plt.figure(figsize=(4,6)) #make the figure taller than it is wide (for atmosphere vibes)
+plt.plot(temps, layers, '-o') #make the plot with dots at each layer
+plt.yticks(layers) #label each layer on the y axis
+plt.xlabel('Temperature (K)') #label x axis
+plt.ylabel('Atmospheric Layers (0 = surface)') #label y axis
+plt.title('Temperature in a Nuclear Winter') #give the plot a title
+plt.grid(True) #add grid lines
+plt.show() #show the plot without saving it (I saved plots from the pop out window once previewed)

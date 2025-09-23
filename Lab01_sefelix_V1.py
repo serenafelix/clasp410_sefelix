@@ -151,11 +151,19 @@ def energy_balance_model_nuclear(N=5, emis=1.0, a=0.33, solar=1350):
     AtmosFlux = np.matmul(InverseA, b) #matrix multiplication to get fluxes
 
     # convert flux (W/m^2) to temperature using Stefan-Boltzmann law
-    with np.errstate(invalid='ignore', divide='ignore'): #needed to add this line to avoid warnings and NaNs
-        nuclear_temp[5] = (AtmosFlux[5] / sbc / emis) ** 0.25 ##solve for the top layer so it absorbs all incoming solar radiation
-        # solve for other layers separately, including them with the surface
-        nuclear_temp = (AtmosFlux / sbc) ** 0.25
-        
+    # Initialize the output array first
+    nuclear_temp = np.zeros(N+1)
+    with np.errstate(invalid='ignore', divide='ignore'):
+        # compute baseline temperatures using the provided emissivity for atmosphere/surface
+        if emis != 0:
+            nuclear_temp = (AtmosFlux / sbc / emis) ** 0.25
+        else:
+            # avoid division by zero if emis == 0
+            nuclear_temp = (AtmosFlux / sbc) ** 0.25
+
+        # top layer (index N) is assumed to have emissivity = 1 (absorbs all incoming)
+        # use emissivity=1 for that layer when converting flux to temperature
+        nuclear_temp[N] = (AtmosFlux[N] / sbc) ** 0.25
 
     return nuclear_temp
 print(energy_balance_model_nuclear(5, 1.0, albedo, 1350))

@@ -1,0 +1,181 @@
+#!/usr/bin/env python3
+"""
+This is my code to answer questions from Lab 03 for CLIMATE410.
+
+There is a solver for a heat equation that accepts different initial and boundary conditions.
+
+This is followed by a function to plot results using both a heat map and a linear representation.
+
+Finally, code to answer each lab question using these two functions is provided.
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+######Start with data from Kangerlussuaq, Greenland (Given in the lab handout)
+t_kanger = np.array([-19.7, -21.0, -17., -8.4, 2.3, 8.4,
+                     10.7, 8.5, 3.1, -6.0, -12.0, -16.9])
+
+def temp_kanger(t_days):
+    """
+    Return surface temperature (in Celcius) over time in days.
+    """
+    t_amp = (t_kanger - t_kanger.mean()).max()
+    return t_amp * np.sin(np.pi/180 * t_days - np.pi/2) + t_kanger.mean()
+
+#######Create the heat equation solver
+def diffusion(depth = 1, time = 0.2, xstep = 0.2, tstep = 0.02, coef = 1, init = None, bottom = 0, top = 0):
+    """
+    A function for solving a heat diffusion equation. This solver will be used to answer
+    lab questions one, two, and three.
+
+    Parameters:
+    depth: the length of the spatial domain (m)
+    time: the length of the temporal domain (seconds)
+    xstep: spatial step size (m)
+    tstep: temporal step size (seconds).
+    coef : thermal diffusivity coefficient (m^2/s)
+    init : initial condition (array or constant)
+    bottom : lower boundary condition
+    top : upper boundary condition
+
+    Returns:
+    t_years : vector of grid points in time
+    x : vector of spatial grid points
+    temps : two-dimensional array of temperatures at each spatial and temporal grid point
+    """
+    #create grids
+    N = int(time/tstep) + 1 #number of time steps
+    M = int(depth/xstep) + 1 #number of spatial steps
+    t = np.linspace(0, time, N) #time grid in seconds
+    x = np.linspace(0, depth, M) #spatial grid in meters
+
+    #populate temperature array
+    temps = np.zeros((M, N))
+
+    #set initial condition
+    if init is not None:
+        temps[:, 0] = init
+    else:
+        #default initial condition used for validation in question one
+        temps[:, 0] = 4*x - 4*x**2
+
+    #stability check
+    r = coef * tstep / xstep**2
+    if r > 0.5:
+        raise ValueError(f"Oh no! Unstable conditions: r = {r:.3f} > 0.5")
+
+    # Time stepping
+    for j in range(N-1): #loop over time steps
+        #solve equation
+        temps[1:M-1, j+1] = ((1 - 2*r) * temps[1:M-1, j] +
+                         r*(temps[2:M, j] + temps[:M-2, j]))
+
+        #set boundary conditions
+        #lower boundary (top/surface (x=0))
+        if top is None:  # Neumann
+            temps[0, j+1] = temps[1, j+1]
+        elif callable(top): # Dirichlet
+            temps[0, j+1] = top(t[j+1])
+        else:
+            temps[0, j+1] = top
+
+        #upper boundary (deep/bottom (x=depth))
+        if bottom is None: # Neumann
+            temps[-1, j+1] = temps[-2, j+1]
+        elif callable(bottom): # Dirichlet
+            temps[-1, j+1] = bottom(t[j+1])
+        else:
+            temps[-1, j+1] = bottom
+
+    return t, x, temps #return time grid, spatial grid, and temperature array
+
+
+########Produce plots (one heatmap and one line plot at specific depths)
+#heatmap (left half of figure two in lab handout)
+def heatmap(t, x, temps, title=None):
+    """
+    Plot the 2D solution for the `diffusion` function.
+    x-axis: time
+    y-axis: depth
+    """
+    fig, ax = plt.subplots(1, 1, figsize=(8, 6)) #create figure and axis
+
+    color = ax.pcolor(t, x, temps, cmap='coolwarm', vmin=-25, vmax=25) #create color plot
+    plt.colorbar(color, ax=ax, label='Temperature (°C)') #add color bar
+
+    #Labels and specifications
+    ax.set_xlabel("Time (years)") #label x axis
+    ax.set_ylabel("Depth (m)") #label y axis
+    ax.set_title(title) #set title
+    ax.invert_yaxis() #invert y axis so surface is at top
+    plt.show() #show the plot without saving it (I saved plots from the pop out window once previewed)
+    
+    return fig, ax #return figure and axis in case needed
+
+#linear plot at specific depths (right half of figure two in lab handout)
+def temp_profile(x, summer, winter, title=None):
+    """
+    Plot temperature profiles at specific depths for summer and winter conditions.
+    x-axis: temperature (in Celcius)
+    y-axis: depth (m)
+    """
+    fig, ax = plt.subplots(1, 1, figsize=(6, 8)) #create figure and axis
+    ax.plot(winter, x, label="Winter") #plot winter temperatures (solved for in later steps)
+    ax.plot(summer, x, label="Summer") #plot summer temperatures (solved for in later steps)
+
+    ax.set_xlabel("Temperature (°C)") #label x axis
+    ax.set_ylabel("Depth (m)") #label y axis
+
+    if title is None:
+        title = "Seasonal Temperature Profile of Permafrost" # default title
+    
+    ax.legend() #add legend
+    ax.invert_yaxis() #invert y axis so surface is at top
+    ax.set_title(title)
+    plt.show() #show the plot without saving it (I saved plots from the pop out window once previewed)
+
+    return fig, ax #return figure and axis in case needed
+
+########Validate the solver with the initial condition provided in the lab handout
+print(diffusion()) #print the array and compare to the expected output, if it matches we're getting somewhere!
+
+########Prep for questions 2 and 3 (run before trying to create figures)
+#convert to years and days where needed
+years = 200 * 365 * 24 * 3600 #convert years to seconds
+dt = 24 * 3600 # a day in seconds (gets daily cycle without crashing my computer)
+
+def boundary(t):
+    days = t / (24 * 3600) #convert time array to days for temperature function
+    return temp_kanger(days) #get surface temperature over time in days
+
+#set initial codition to zero everywhere
+x = np.linspace(0, 100, int(100/1)+1) #spatial grid from 0 to 100 m with 1 m steps
+initial = np.zeros_like(x) #initial condition of 0 degrees everywhere
+
+########Permafrost simulations for question 2 (no warming)
+#run the diffusion solver
+t, x, temps = diffusion(depth=100, time= years, xstep=1, tstep=dt, coef=0.25e-6, init=initial, bottom=5, top= boundary)
+
+#plot the results
+heatmap(t/(365*24*3600), x, temps, title=f"Permafrost Heatmap") #convert time to years for plotting
+loc = int(-365*24*3600 / dt) #index for one year before end of simulation
+winter = temps[:, loc:].min(axis=1) #winter temperatures
+summer = temps[:, loc:].max(axis=1) #summer temperatures
+temp_profile(x, winter, summer, title=None) #plot temp profile (default title)
+
+########Permafrost simulations for question 3 (adding climate change)
+def boundwarming(t):
+    days = t / (24 * 3600) #convert time array to days for temperature function
+    warming = 0.5 #add desired degrees of warming (0.5, 1, and 3 degrees C)
+    return temp_kanger(days) + warming #get surface temperature over time in days with climate change
+
+#run the diffusion solver with climate change (run three times with different warming values for question 3)
+t, x, temps = diffusion(depth=100, time= years, xstep=1, tstep=dt, coef=0.25e-6, init=initial, bottom=5, top= boundwarming)
+heatmap(t/(365*24*3600), x, temps, title=f"Permafrost Heatmap with 0.5 Degrees C Warming") #convert time to years for plotting
+loc = int(-365*24*3600 / dt) #index for one year before end of simulation
+winter = temps[:, loc:].min(axis=1) #winter temperatures
+summer = temps[:, loc:].max(axis=1) #summer temperatures
+
+#plot temp profile (custom title, change with each level of warming)
+temp_profile(x, winter, summer, title=f"Permafrost Temperature Profile with 0.5 Degrees C Warming")

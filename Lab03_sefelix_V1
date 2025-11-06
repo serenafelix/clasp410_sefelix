@@ -111,9 +111,34 @@ def solve_heat_diffusion(depth = 1, time = 0.2, xstep = 0.2, tstep = 0.02, coef 
 #save_path argument let users decide whether to save the plot.
 def heatmap(t, x, temps, title=None, save_path=None):
     """
-    Plot the 2D solution for the `diffusion` function.
-    x-axis: time
-    y-axis: depth
+    Plot the 2D temperature distribution obtained from the heat diffusion solver.
+
+    This function visualizes the temporal evolution of temperature with depth
+    using a color heatmap, where the x-axis represents time, and the y-axis
+    represents depth. The function optionally saves the figure to a specified
+    path.
+
+    Parameters
+    ----------
+    t : array
+        1D array of time values.
+    x : array
+        1D array of spatial positions represent depth.
+    temps : array
+        2D array of temperatures with shape (len(x), len(t)).
+        Each column corresponds to a temperature profile at a given time step.
+    title : str, optional
+        Title of the plot. If None, no title is displayed.
+    save_path : str or None, optional
+        Path to save the generated heatmap figure.
+        If None, the figure is not saved.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        The created Matplotlib Figure object.
+    ax : matplotlib.axes.Axes
+        The created Matplotlib Axes object.
     """
     fig, ax = plt.subplots(1, 1, figsize=(8, 6)) #create figure and axis
 
@@ -136,8 +161,31 @@ def heatmap(t, x, temps, title=None, save_path=None):
 def temp_profile(x, summer, winter, title=None, save_path=None):
     """
     Plot temperature profiles at specific depths for summer and winter conditions.
-    x-axis: temperature (in Celsius)
-    y-axis: depth (m)
+    This function generates a line plot showing how temperature varies with depth for two seasonal extremes — summer and winter. 
+
+    Parameters
+    ----------
+    x : array
+        1D array of spatial positions showing depth.
+    summer : array
+        1D array of temperature values corresponding to summer conditions.
+        Must have the same length as `x`.
+    winter : array
+        1D array of temperature values corresponding to winter conditions.
+        Must have the same length as `x`.
+    title : str, optional
+        Title of the plot. If None, defaults to
+        "Seasonal Temperature Profile of Permafrost".
+    save_path : str or None, optional
+        Path to save the generated figure.
+        If None, the figure is not saved.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        The created Matplotlib Figure object.
+    ax : matplotlib.axes.Axes
+        The created Matplotlib Axes object.
     """
     fig, ax = plt.subplots(1, 1, figsize=(6, 8)) #create figure and axis
     ax.plot(winter, x, label="Winter") #plot winter temperatures (solved for in later steps)

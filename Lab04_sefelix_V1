@@ -1,0 +1,255 @@
+#!/usr/bin/env python3
+
+'''
+This is my code for Lab 04. It contains numerical solvers for wildfire and disease spread, as well as 
+mechanisms for visualizing the results. Questions from the lab are answered in functions at the bottom of the file.
+Preceeding the questions is a function that implements the forest fire model used in questions one and two.
+'''
+#imports
+import numpy as np
+from numpy.random import rand
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+
+#set plotting colors
+fire_col = ListedColormap(['tan', 'forestgreen', 'crimson']) #colors for fire simulation
+disease_col = ListedColormap(['black', 'skyblue', 'forestgreen', 'crimson']) #colors for disease simulation
+
+#######Forest Fire Model
+def forest_fire(isize=3, jsize=3, nstep=4, pspread=1, pignite=0, pbare=0):
+    """
+    Simulate a forest fire on a 2D grid over time.
+
+    Parameters:
+    isize, jsize : int
+        Dimensions of our forest grid (in x and y directions)
+    nstep : int
+        Number of interations the model will run for (time steps)
+    pspread : float
+        Probability that fire spreads from a burning cell to a neighboring forested cell*
+    pignite : float
+        Probability that any given cell starts on fire initially*
+    pbare : float
+        Probability that a cell starts bare (unburnable)*
+
+    * Note: All probabilities are between 0 and 1, representing 0% to 100% respectively
+
+    Returns:
+    forest : np.ndarray
+        3D array (time, x, y) containing the status of every cell. Each value represents the following:
+            1 = bare/burnt
+            2 = forested
+            3 = burning
+    """
+    #populate initial forest grid
+    forest = np.zeros((nstep, isize, jsize)) + 2 #everywhere starts forested
+
+    #set initial ignited spots
+    if pignite > 0:
+        loc_ignite = np.zeros((isize, jsize), dtype=bool)
+        while loc_ignite.sum() == 0: #ensure at least one point ignites
+            loc_ignite = rand(isize, jsize) <= pignite #get locations to ignite
+        print(f"AHHHH! There's {loc_ignite.sum()} points on fire!") #debugging print
+        forest[0, loc_ignite] = 3 #set initial fires
+    else:
+        #make a fire happen in the center of the matrix if no random ignitions
+        forest[0, isize//2, jsize//2] = 3
+
+    #set initial bare/already burnt spots
+    loc_bare = rand(isize, jsize) <= pbare
+    forest[0, loc_bare] = 1
+
+    #create evolutions of the forest over time
+    for k in range(nstep - 1):
+        forest[k+1, :, :] = forest[k, :, :] #set next time step to current state
+        for i in range(isize):
+            for j in range(jsize): 
+                #move forward with burning cells:
+                if forest[k, i, j] != 3:
+                    continue
+                #see if fire spreads in each direction:
+                #up
+                if (i > 0) and (rand() < pspread) and (forest[k, i-1, j] == 2):
+                    forest[k+1, i-1, j] = 3
+                #down
+                if (i < isize-1) and (rand() < pspread) and (forest[k, i+1, j] == 2):
+                    forest[k+1, i+1, j] = 3
+                #left
+                if (j > 0) and (rand() < pspread) and (forest[k, i, j-1] == 2):
+                    forest[k+1, i, j-1] = 3
+                #right
+                if (j < jsize-1) and (rand() < pspread) and (forest[k, i, j+1] == 2):
+                    forest[k+1, i, j+1] = 3
+
+                #If a cell is burning, make it burnt in the next time step
+                forest[k+1, i, j] = 1
+
+    return forest
+
+#######Question One
+#plotting Function
+def plot_forest2d(forest, itime=0, cmap=fire_col):
+    """This function plots a 2D grid of the forest for each iteration of the solver."""
+    fig, ax = plt.subplots(figsize=(6,6))
+    c = ax.pcolor(forest[itime,:,:], vmin=1, vmax=3, cmap=cmap)
+    cbar = plt.colorbar(c, ax=ax, orientation='horizontal', fraction=0.046)
+    cbar.set_ticks([1, 2, 3])
+    cbar.set_ticklabels(['Bare/Burnt', 'Forested', 'Burning'])
+    ax.set_title(f'Time step = {itime}')
+    ax.invert_yaxis()
+    ax.set_xlabel('Eastward ($km$) $\\longrightarrow$')
+    ax.set_ylabel('Northward ($km$) $\\longrightarrow$')
+    plt.show()
+
+#Code test to validate the solver
+def test_solver():
+    """Use this code to answer question one. It runs a small forest fire simulation and plots each iteration."""
+    forest = forest_fire(isize=3, jsize=3, nstep=3,
+                         pspread=1, pignite=0, pbare=0)
+    for t in range(3):
+        plot_forest2d(forest, itime=t)
+
+#Code to produce wider than tall plot used in methodology
+def wider_than_tall():
+    """Use this code to answer question one. It produces a the plot wider than it is tall used in the methodology section of my report."""
+    forest = forest_fire(isize=5, jsize=10, nstep=3,
+                         pspread=1, pignite=0, pbare=0)
+    for t in range(3):
+        plot_forest2d(forest, itime=t)
+
+#######Question Two
+def explore():
+    """Answer Question: How does the spread of wildfire depend on the
+    probability of spread of fire and initial forest density?"""
+    values = np.linspace(0, 1, 6) #values from 0 to 1 in 0.2 increments
+
+    #Pspread Experiment
+    plt.figure()
+    for p in values: 
+        forest = forest_fire(isize=25, jsize=25, nstep=10,
+                             pspread=p, pignite=0.1, pbare=0) #simulate fire spread
+        burned = (forest == 1).sum(axis=(1,2)) / (25*25) #calculate fraction burned over time
+        plt.plot(burned, label=f"Pspread={p:.1f}") #plot burned fraction
+    plt.xlabel("Time Step (nstep)")
+    plt.ylabel("Percent Burned")
+    plt.title("Effect of Spread Probability on Wildfire")
+    plt.legend()
+    plt.show()
+
+    #Pbare Experiment
+    plt.figure()
+    for p in values:
+        forest = forest_fire(isize=25, jsize=25, nstep=10,
+                             pspread=1, pignite=0.1, pbare=p) #simulate fire spread
+        burned = (forest == 1).sum(axis=(1,2)) / (25*25) #calculate fraction burned over time
+        plt.plot(burned, label=f"Pbare={p:.1f}") #plot burned fraction
+    plt.xlabel("Time Step (nstep)")
+    plt.ylabel("Percent Burned")
+    plt.title("Effect of Initial Forest Cover on Fire Spread")
+    plt.legend()
+    plt.show()
+
+#####Question Three
+#remake the forest fire model to simulate disease spread
+def feeling_sick(isize=25, jsize=25, nstep=10, pspread=1, pignite=0.1, pimmune=0.1, pfatal=0.25):
+    """
+    Simulate the spread of disease using same mechanics as the forest fire model.
+
+    Parameters
+    isize, jsize : int
+        Dimensions of our population grid (in x and y directions)
+    nstep : int
+        Number of interations the model will run for (time steps)
+    pspread : float
+        Probability that disease spreads from an infected individual to a neighboring healthy individual*
+    pignite : float
+        Probability that any given individual starts infected initially*
+    pimmune : float
+        Fraction of population initially immune (vaccinated)*
+    pfatal : float
+        Probability that an infected individual dies instead of recovering (this stuff is deadly)*
+
+    * Note: All probabilities are between 0 and 1, representing 0% to 100% respectively
+
+    Returns:
+    forest : np.ndarray
+        3D array (time, x, y) containing the status of every cell. Each value represents the following:
+            0 = deceased
+            1 = immune
+            2 = healthy
+            3 = infected
+    """
+
+    #initialize population grid
+    coughcough = np.zeros((nstep, isize, jsize)) + 2  #everyone starts healthy
+
+    #assign immunity (thanks to vaccine)
+    immune_mask = rand(isize, jsize) <= pimmune #get locations of immune individuals
+    coughcough[0, immune_mask] = 1 #set immune individuals
+
+    #randomly infect some people
+    infect_mask = rand(isize, jsize) <= pignite #get locations to infect
+    coughcough[0, infect_mask] = 3 #set initial infections
+
+    #simulate disease spread over time
+    for k in range(nstep-1):
+        coughcough[k+1,:,:] = coughcough[k,:,:] #set next time step to current state
+        for i in range(isize):
+            for j in range(jsize):
+                if coughcough[k,i,j] != 3: #only infected can spread disease
+                    continue
+                #see if disease spreads in each direction
+                #up
+                if (i > 0) and (rand() < pspread) and (coughcough[k,i-1,j] == 2):
+                    coughcough[k+1,i-1,j] = 3
+                #down
+                if (i < isize-1) and (rand() < pspread) and (coughcough[k,i+1,j] == 2):
+                    coughcough[k+1,i+1,j] = 3
+                #left
+                if (j > 0) and (rand() < pspread) and (coughcough[k,i,j-1] == 2):
+                    coughcough[k+1,i,j-1] = 3
+                #right
+                if (j < jsize-1) and (rand() < pspread) and (coughcough[k,i,j+1] == 2):
+                    coughcough[k+1,i,j+1] = 3
+
+                #determine if infected individual recovers or dies
+                if rand() < pfatal:
+                    coughcough[k+1,i,j] = 0 #deceased
+                else:
+                    coughcough[k+1,i,j] = 1 #recovered/immune
+
+    return coughcough
+
+#plotting function for disease model
+def explore_disease():
+    """Answer Question: How does disease mortality rate (Psurvive) and early 
+    vaccine rates affect disease spread?"""
+    #Psurvive Experiment
+    pfatal_values = [0.0, 0.25, 0.5, 0.75] #different mortality rates to test
+    plt.figure()
+    for p in pfatal_values:
+        bleh = feeling_sick(pfatal=p, pimmune=0.1) #simulate disease spread
+        dead = (bleh == 0).sum(axis=(1,2)) / (20*20) #calculate fraction deceased over time
+        infected = (bleh == 3).sum(axis=(1,2)) / (20*20) #calculate fraction infected over time
+        plt.plot(dead, label=f"Pfatal={p:.2f} (dead)") #plot deceased fraction
+        plt.plot(infected, linestyle='--', label=f"Pfatal={p:.2f} (infected)") #plot infected fraction
+    plt.xlabel("Time Step (nstep)")
+    plt.ylabel("Percent of Population")
+    plt.title("Effect of Mortality on Buckeyeitis Spread")
+    plt.legend()
+    plt.show()
+
+    #Pimmune Experiment
+    pimmune_values = [0.0, 0.25, 0.5, 0.75] #different immunity rates to test
+    plt.figure()
+    for p in pimmune_values:
+        bleh = feeling_sick(pfatal=0.25, pimmune=p) #simulate disease spread
+        dead = (bleh == 0).sum(axis=(1,2)) / (20*20) #calculate fraction deceased over time
+        infected = (bleh == 3).sum(axis=(1,2)) / (20*20) #calculate fraction infected over time
+        plt.plot(dead, label=f"Pimmune={p:.2f} (dead)") #plot deceased fraction
+        plt.plot(infected, linestyle='--', label=f"Pimmune={p:.2f} (infected)") #plot infected fraction
+    plt.xlabel("Time step (nstep)")
+    plt.ylabel("Percent of Population")
+    plt.title("Effect of Early Vaccination on Buckeyeitis Spread")
+    plt.legend()
+    plt.show()

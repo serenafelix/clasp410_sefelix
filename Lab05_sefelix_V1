@@ -309,29 +309,34 @@ def q_four():
     '''
     gamma_vals_up = np.arange(0.4, 1.41, 0.05) #solar multipliers
     gamma_vals_down = np.arange(1.4, 0.39, -0.05) #solar multipliers (reverse)
-    avgTemps = [] #list to hold average temperatures
-    gammas = [] #list to hold gamma values
+    avgTemps_up = [] #list to hold average temperatures
+    gammas_up = [] #list to hold gamma values
+    avgTemps_down = [] #list to hold average temperatures
+    gammas_down = [] #list to hold gamma values
     temp_init = -60 * np.ones(18)  #initial condition: cold start
 
     for g in gamma_vals_up: #loop up through gamma values
-        solar = 1370 * g #calculate solar constant
+        sol = g * 1370 #calculate solar constant
         lats, temp_up = snowball_earth(init_cond=temp_init, emiss=0.73, therm_diff=40, apply_spherecorr=True,
-                                       apply_insol=True, solar=solar) #solve snowball earth
-        avgTemps.append(np.mean(temp_up)) #calculate average temperature
-        gammas.append(g) #store gamma value
+                                       apply_insol=True, solar=sol) #solve snowball earth
+        avgTemps_up.append(np.mean(temp_up)) #calculate average temperature
+        gammas_up.append(g) #store gamma value
         temp_init = temp_up #update initial condition
         
     for g in gamma_vals_down: #loop down through gamma values but everse this time
-        solar = 1370 * g #calculate solar constant
+        sol = g * 1370 #calculate solar constant
         lats, temp_down = snowball_earth(init_cond=temp_init, emiss=0.73, therm_diff=40, apply_spherecorr=True,
-                                       apply_insol=True, solar=solar) #solve snowball earth
-        avgTemps.append(np.mean(temp_down)) #calculate average temperature
-        gammas.append(g) #store gamma value
+                                       apply_insol=True, solar=sol) #solve snowball earth
+        avgTemps_down.append(np.mean(temp_down)) #calculate average temperature
+        gammas_down.append(g) #store gamma value
         temp_init = temp_down #update initial condition
     
-    plt.plot(gammas, avgTemps, marker='o') #plot average temperature vs gamma
+    plt.plot(gammas_up, avgTemps_up, label='Increasing Gamma') #plot increasing gamma
+    plt.plot(gammas_down, avgTemps_down, label='Decreasing Gamma') #plot decreasing gamma
     plt.title('Assesing the Stability of the Snowball Earth Model') #add title
     plt.ylabel('Average Temperature (C)') #add y label
     plt.xlabel('Gamma (Solar Multiplier)') #add x label
+    plt.legend(loc='best') #add legend
     plt.show()
 
+q_four()

@@ -338,5 +338,3 @@ def q_four():
     plt.xlabel('Gamma (Solar Multiplier)') #add x label
     plt.legend(loc='best') #add legend
     plt.show()
-
-q_four()
